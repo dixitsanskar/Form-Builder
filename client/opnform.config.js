@@ -5,8 +5,7 @@ export default {
   githubAuth: null,
   notion: { worker: "https://notion-forms-worker.notionforms.workers.dev/v1" },
   links: {
-    help_url: "https://github.com/JhumanJ/OpnForm/discussions",
-    helpdesk_sitemap_url: "https://notionforms.crisp.help/sitemap.xml",
+    help_url: "https://help.opnform.com",
     github_url: "https://github.com/JhumanJ/OpnForm",
     github_forum_url: "https://github.com/JhumanJ/OpnForm/discussions",
     discord: "https://discord.gg/YTSjU2a9TS",
@@ -17,5 +16,6 @@ export default {
     feature_requests: "https://feedback.opnform.com/",
     changelog_url: "https://feedback.opnform.com/changelog",
     roadmap: "https://feedback.opnform.com/roadmap",
+    tech_docs: "https://docs.opnform.com",
   },
 }

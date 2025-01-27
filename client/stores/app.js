@@ -20,6 +20,10 @@ export const useAppStore = defineStore("app", {
       _cut: null,
     },
   }),
+  getters: {
+    featureBaseEnabled: () => useRuntimeConfig().public.featureBaseOrganization !== null,
+    crispEnabled: () => useRuntimeConfig().public.crispWebsiteId !== null && useRuntimeConfig().public.crispWebsiteId !== '',
+  },
   actions: {
     hideNavbar() {
       this.navbarHidden = true

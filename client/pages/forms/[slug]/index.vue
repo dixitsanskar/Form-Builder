@@ -20,12 +20,13 @@
         v-if="form.logo_picture"
         class="w-full p-5 relative mx-auto"
         :class="{'pt-20':!form.cover_picture, 'md:w-3/5 lg:w-1/2 md:max-w-2xl': form.width === 'centered', 'max-w-7xl': (form.width === 'full' && !isIframe) }"
+        :style="{ 'direction': form?.layout_rtl ? 'rtl' : 'ltr' }"
       >
         <img
           alt="Logo Picture"
           :src="form.logo_picture"
           :class="{'top-5':!form.cover_picture, '-top-10':form.cover_picture}"
-          class="w-20 h-20 object-contain absolute left-5 transition-all"
+          class="w-20 h-20 object-contain absolute transition-all"
         >
       </div>
     </div>
@@ -72,7 +73,6 @@
 </template>
 
 <script setup>
-import {computed} from 'vue'
 import OpenCompleteForm from "~/components/open/forms/OpenCompleteForm.vue"
 import sha256 from 'js-sha256'
 import { onBeforeRouteLeave } from 'vue-router'
@@ -93,6 +93,7 @@ const formLoading = computed(() => formsStore.loading)
 const recordLoading = computed(() => recordsStore.loading)
 const slug = useRoute().params.slug
 const form = computed(() => formsStore.getByKey(slug))
+const $t = useI18n()
 
 const openCompleteForm = ref(null)
 
@@ -106,7 +107,7 @@ const passwordEntered = function (password) {
   nextTick(() => {
     loadForm().then(() => {
       if (form.value?.is_password_protected) {
-        openCompleteForm.value.addPasswordError('Invalid password.')
+        openCompleteForm.value.addPasswordError($t('forms.invalid_password'))
       }
     })
   })
@@ -135,8 +136,15 @@ const loadForm = async (setup=false) => {
   formsStore.stopLoading()
 
   // Adapt page to form: colors, custom code etc
-  handleDarkMode(form.value.dark_mode)
-  handleTransparentMode(form.value.transparent_background)
+  handleDarkMode(form.value?.dark_mode)
+  handleTransparentMode(form.value?.transparent_background)
+
+  // Remove 'hidden' class from html tag if present
+  nextTick(() => {
+    if (import.meta.client) {
+      window.document.documentElement.classList.remove('hidden')
+    }
+  })
 }
 
 await loadForm(true)
@@ -153,6 +161,13 @@ onMounted(() => {
     handleDarkMode(form.value?.dark_mode)
     handleTransparentMode(form.value?.transparent_background)
 
+    // Remove 'hidden' class from html tag if present
+    nextTick(() => {
+      if (import.meta.client) {
+        window.document.documentElement.classList.remove('hidden')
+      }
+    })
+
     if (import.meta.client) {
       if (form.value.custom_code) {
         const scriptEl = document.createRange().createContextualFragment(form.value.custom_code)
@@ -162,7 +177,7 @@ onMounted(() => {
           console.error('Error appending custom code', e)
         }
       }
-      if (!isIframe) focusOnFirstFormElement()
+      if (!isIframe && form.value?.auto_focus) focusOnFirstFormElement()
     }
   }
 })
@@ -179,6 +194,39 @@ const pageMeta = computed(() => {
   }
   return {}
 })
+
+const getFontUrl = computed(() => {
+  if(!form.value || !form.value.font_family) return null
+  const family = form.value.font_family.replace(/ /g, '+')
+  return `https://fonts.googleapis.com/css?family=${family}:wght@400,500,700,800,900&display=swap`
+})
+
+const headLinks = computed(() => {
+  const links = []
+  if (form.value && form.value.font_family) {
+    links.push({
+        rel: 'stylesheet',
+        href: getFontUrl.value
+    })
+  }
+  if (pageMeta.value.page_favicon) {
+    links.push({
+        rel: 'icon', type: 'image/x-icon',
+        href: pageMeta.value.page_favicon
+    })
+    links.push({
+        rel: 'apple-touch-icon',
+        type: 'image/png',
+        href: pageMeta.value.page_favicon
+    })
+    links.push({
+      rel: 'shortcut icon',
+      href: pageMeta.value.page_favicon
+    })
+  }
+  return links
+})
+    
 useOpnSeoMeta({
   title: () => {
     if (pageMeta.value.page_title) {
@@ -187,10 +235,10 @@ useOpnSeoMeta({
     return form.value ? form.value.title : 'Create beautiful forms'
   },
   description: () => {
-    if (pageMeta.value.description) {
-      return pageMeta.value.description
+    if (pageMeta.value.page_description) {
+      return pageMeta.value.page_description
     }
-    return (form.value && form.value?.description) ? form.value?.description.substring(0, 160) : null
+    return null
   },
   ogImage: () => {
     if (pageMeta.value.page_thumbnail) {
@@ -202,7 +250,20 @@ useOpnSeoMeta({
     return (form.value && form.value?.can_be_indexed) ? null : 'noindex, nofollow'
   }
 })
+
+const getHtmlClass = computed(() => {
+  return {
+    dark: form.value?.dark_mode === 'dark',
+    hidden: form.value?.dark_mode === 'auto' && import.meta.server,
+  }
+})
+
 useHead({
+  htmlAttrs: {
+    dir: () => form.value?.layout_rtl ? 'rtl' : 'ltr',
+    class: getHtmlClass.value,
+    lang: () => form.value?.language || 'en'
+  },
   titleTemplate: (titleChunk) => {
     if (pageMeta.value.page_title) {
       // Disable template if custom SEO title
@@ -210,21 +271,7 @@ useHead({
     }
     return titleChunk ? `${titleChunk} - OpnForm` : 'OpnForm'
   },
-  link: pageMeta.value.page_favicon ? [
-    {
-      rel: 'icon', type: 'image/x-icon',
-      href: pageMeta.value.page_favicon
-    },
-    {
-      rel: 'apple-touch-icon',
-      type: 'image/png',
-      href: pageMeta.value.page_favicon
-    },
-    {
-      rel: 'shortcut icon',
-      href: pageMeta.value.page_favicon
-    }
-  ] : {},
+  link: headLinks.value,
   meta: pageMeta.value.page_favicon ? [
     {
       name: 'apple-mobile-web-app-capable',
@@ -235,6 +282,6 @@ useHead({
       content: 'black-translucent'
     },
   ] : {},
-  script: [{ src: '/widgets/iframeResizer.contentWindow.min.js' } ]
+  script: [{ src: '/widgets/iframeResizer.contentWindow.min.js' }]
 })
 </script>
